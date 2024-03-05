@@ -12,8 +12,8 @@
 "use strict";
 
 function myBind(func, context) {
-  return function() {
-    return func.call(context);
+  return function(...args) {
+    return func.apply(context, args);
   };
 }
 
@@ -25,7 +25,16 @@ function getA() {
   return this.a;
 }
 
-let boundFunc = myBind(getA, obj);
+let boundGetA = myBind(getA, obj);
 
-console.log(boundFunc());           // regular invocation
-console.log(boundFunc.call(null));  // `this` has been permanently bound
+console.log(boundGetA());           // regular invocation
+console.log(boundGetA.call(null));  // `this` has been permanently bound
+
+function getAConcat(txt) {
+  return `${this.a} ${txt}`;
+}
+
+let boundGetAConcat = myBind(getAConcat, obj);
+
+console.log(boundGetAConcat("message"));             // regular invocation
+console.log(boundGetAConcat.call(null, "message"));  // `this` has been permanently bound
