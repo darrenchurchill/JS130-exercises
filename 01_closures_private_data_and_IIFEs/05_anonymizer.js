@@ -12,15 +12,20 @@
 "use strict";
 
 const Account = (function() {
-  // FIXME: there will only be one version of each of these variables across all
-  // Account instances. This isn't probably what you'd want.
-  let userEmail;
-  let userPassword;
-  let userFirstName;
-  let userLastName;
+  // A plain object or Map would work too, but WeakMap is optimized for garbage
+  // collection.
+  let userAccounts = new WeakMap();
 
-  function isValidPassword(inputPassword) {
-    return inputPassword === userPassword;
+  function AccountInfo(email, password, firstName, lastName, displayName) {
+    this.email = email;
+    this.password = password;
+    this.firstName = firstName;
+    this.lastName = lastName;
+    this.displayName = displayName;
+  }
+
+  function isValidPassword(inputPassword, thisArg) {
+    return inputPassword === userAccounts.get(thisArg).password;
   }
 
   function anonymize() {
@@ -37,41 +42,40 @@ const Account = (function() {
 
   return {
     init(email, password, firstName, lastName) {
-      userEmail = email;
-      userPassword = password;
-      userFirstName = firstName;
-      userLastName = lastName;
-
       this.displayName = anonymize();
-
+      userAccounts.set(
+        this,
+        new AccountInfo(email, password, firstName, lastName, this.displayName)
+      );
       return this;
     },
 
     reanonymize(inputPassword) {
-      if (!isValidPassword(inputPassword)) return "Invalid Password";
+      if (!isValidPassword(inputPassword, this)) return "Invalid Password";
       this.displayName = anonymize();
+      userAccounts.get(this).displayName = this.displayName;
       return true;
     },
 
     resetPassword(oldPassword, newPassword) {
-      if (!isValidPassword(oldPassword)) return "Invalid Password";
-      userPassword = newPassword;
+      if (!isValidPassword(oldPassword, this)) return "Invalid Password";
+      userAccounts.get(this).password = newPassword;
       return true;
     },
 
     firstName(inputPassword) {
-      if (!isValidPassword(inputPassword)) return "Invalid Password";
-      return userFirstName;
+      if (!isValidPassword(inputPassword, this)) return "Invalid Password";
+      return userAccounts.get(this).firstName;
     },
 
     lastName(inputPassword) {
-      if (!isValidPassword(inputPassword)) return "Invalid Password";
-      return userLastName;
+      if (!isValidPassword(inputPassword, this)) return "Invalid Password";
+      return userAccounts.get(this).lastName;
     },
 
     email(inputPassword) {
-      if (!isValidPassword(inputPassword)) return "Invalid Password";
-      return userEmail;
+      if (!isValidPassword(inputPassword, this)) return "Invalid Password";
+      return userAccounts.get(this).email;
     },
   };
 })();
@@ -89,3 +93,20 @@ console.log(fooBar.resetPassword("123456", "abc"));  // => true
 let displayName = fooBar.displayName;
 console.log(fooBar.reanonymize("abc"));              // => true
 console.log(displayName === fooBar.displayName);     // => false
+
+
+let baz = Object.create(Account).init("baz@baz.com", "abcdef", "baz", "bazbaz");
+console.log(baz.firstName);                          // returns the firstName function
+console.log(baz.email);                              // returns the email function
+console.log(baz.firstName("abcdef"));                // => "foo"
+console.log(baz.firstName("abc"));                   // => "Invalid Password"
+console.log(baz.displayName);                        // => 16 character sequence
+console.log(baz.resetPassword("123", "abc"));        // => "Invalid Password"
+console.log(baz.resetPassword("abcdef", "abc"));     // => true
+
+displayName = baz.displayName;
+console.log(baz.reanonymize("abc"));                 // => true
+console.log(displayName === baz.displayName);        // => false
+
+// Creating baz didn't overwrite fooBar's info
+console.log(fooBar.firstName("abc"));                // => "foo"
