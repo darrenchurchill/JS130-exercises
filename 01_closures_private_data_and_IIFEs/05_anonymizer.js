@@ -24,8 +24,16 @@ const Account = (function() {
     this.displayName = displayName;
   }
 
-  function isValidPassword(inputPassword, thisArg) {
-    return inputPassword === userAccounts.get(thisArg).password;
+  function doOnValidPassword(
+    callback,
+    inputPassword,
+    thisArg,
+    errMsg = "Invalid Password"
+  ) {
+    if (inputPassword === userAccounts.get(thisArg).password) {
+      return callback.call(thisArg);
+    }
+    return errMsg;
   }
 
   function anonymize() {
@@ -51,31 +59,36 @@ const Account = (function() {
     },
 
     reanonymize(inputPassword) {
-      if (!isValidPassword(inputPassword, this)) return "Invalid Password";
-      this.displayName = anonymize();
-      userAccounts.get(this).displayName = this.displayName;
-      return true;
+      return doOnValidPassword(() => {
+        this.displayName = anonymize();
+        userAccounts.get(this).displayName = this.displayName;
+        return true;
+      }, inputPassword, this);
     },
 
     resetPassword(oldPassword, newPassword) {
-      if (!isValidPassword(oldPassword, this)) return "Invalid Password";
-      userAccounts.get(this).password = newPassword;
-      return true;
+      return doOnValidPassword(() => {
+        userAccounts.get(this).password = newPassword;
+        return true;
+      }, oldPassword, this);
     },
 
     firstName(inputPassword) {
-      if (!isValidPassword(inputPassword, this)) return "Invalid Password";
-      return userAccounts.get(this).firstName;
+      return doOnValidPassword(() => {
+        return userAccounts.get(this).firstName;
+      }, inputPassword, this);
     },
 
     lastName(inputPassword) {
-      if (!isValidPassword(inputPassword, this)) return "Invalid Password";
-      return userAccounts.get(this).lastName;
+      return doOnValidPassword(() => {
+        return userAccounts.get(this).lastName;
+      }, inputPassword, this);
     },
 
     email(inputPassword) {
-      if (!isValidPassword(inputPassword, this)) return "Invalid Password";
-      return userAccounts.get(this).email;
+      return doOnValidPassword(() => {
+        return userAccounts.get(this).email;
+      }, inputPassword, this);
     },
   };
 })();
