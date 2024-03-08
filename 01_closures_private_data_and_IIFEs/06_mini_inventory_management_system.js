@@ -11,59 +11,34 @@
  */
 "use strict";
 
-class Item {
-  constructor(skuCode, itemName, category, quantity) {
-    this.skuCode = skuCode;
-    this.itemName = itemName;
-    this.category = category;
-    this.quantity = quantity;
-  }
-}
+const ItemCreator = (function() {
+  const ITEM_NAME_MIN_LENGTH = 5;
+  const ITEM_CATEGORY_MIN_LENGTH = 5;
 
-class InvalidItem {
-  constructor() {
-    this.notValid = true;
-  }
-}
-
-const itemCreator = {
-  itemNameMinLength: 5,
-  itemCategoryMinLength: 5,
-
-  /**
-   *
-   * @param {string} itemName the item name (min `itemCategoryMinLength`
-   * letters, not including spaces)
-   * @param {string} itemCategory the item category (min `itemCategoryMinLength`
-   * letters, must be 1 word)
-   * @param {number} itemQuantity the item quantity (a valid integer >= 0)
-   * @returns {(Item|InvalidItem)} the `Item` or `InvalidItem` created
-   */
-  create(itemName, itemCategory, itemQuantity) {
-    if (
-      this.isValidItemName(itemName) &&
-      this.isValidItemCategory(itemCategory) &&
-      this.isValidItemQuantity(itemQuantity)
-    ) {
-      return new Item(
-        this.createSKU(itemName, itemCategory),
-        itemName,
-        itemCategory,
-        itemQuantity
-      );
+  class Item {
+    constructor(skuCode, itemName, category, quantity) {
+      this.skuCode = skuCode;
+      this.itemName = itemName;
+      this.category = category;
+      this.quantity = quantity;
     }
-    return new InvalidItem();
-  },
+  }
+
+  class InvalidItem {
+    constructor() {
+      this.notValid = true;
+    }
+  }
 
   /**
    * Return `true` if the `itemName` is valid. Valid item names are at minimum
-   * `itemNameMinLength` letters long, not including spaces.
+   * `ITEM_NAME_MIN_LENGTH` letters long, not including spaces.
    * @param {string} itemName the item name to validate
    * @returns {boolean} `true` if the `itemName` is valid
    */
-  isValidItemName(itemName) {
-    return itemName.split(" ").join("").length >= this.itemNameMinLength;
-  },
+  function isValidItemName(itemName) {
+    return itemName.split(" ").join("").length >= ITEM_NAME_MIN_LENGTH;
+  }
 
   /**
    * Return `true` if the `itemCategory` is valid. Valid category names are 1
@@ -71,12 +46,12 @@ const itemCreator = {
    * @param {string} itemCategory the item category to validate
    * @returns {boolean} `true` if the `itemCategory` is valid
    */
-  isValidItemCategory(itemCategory) {
+  function isValidItemCategory(itemCategory) {
     return (
-      itemCategory.length >= this.itemCategoryMinLength &&
+      itemCategory.length >= ITEM_CATEGORY_MIN_LENGTH &&
       !itemCategory.includes(" ")
     );
-  },
+  }
 
   /**
    * Return `true` if the `itemQuantity` is valid. Valid item quantities are
@@ -84,9 +59,9 @@ const itemCreator = {
    * @param {number} itemQuantity the item quantity to validate
    * @returns `true` if the `itemQuantity` is valid
    */
-  isValidItemQuantity(itemQuantity) {
+  function isValidItemQuantity(itemQuantity) {
     return Number.isInteger(itemQuantity) && itemQuantity >= 0;
-  },
+  }
 
   // TODO: should createSKU() be here, or in ItemManager?
   // As is, either:
@@ -96,7 +71,7 @@ const itemCreator = {
   // UPDATE:
   // - if you the ItemManager transforms item SKUs AND input SKUs, you can avoid
   // this problem
-  createSKU(itemName, itemCategory) {
+  function createSKU(itemName, itemCategory) {
     const NAME_NUM_CHARS = 3;
     const CAT_NUM_CHARS = 2;
 
@@ -104,15 +79,40 @@ const itemCreator = {
       itemName.split(" ").join("").slice(0, NAME_NUM_CHARS) +
       itemCategory.slice(0, CAT_NUM_CHARS)
     ).toUpperCase();
-  },
-};
-
-class ItemManager {
-  constructor() {
-    this.itemCreator = itemCreator;
-    /** @type {Array.<Item>} */
-    this.items = [];
   }
+
+  return {
+    /**
+     *
+     * @param {string} itemName the item name (min `itemCategoryMinLength`
+     * letters, not including spaces)
+     * @param {string} itemCategory the item category (min
+     * `itemCategoryMinLength` letters, must be 1 word)
+     * @param {number} itemQuantity the item quantity (a valid integer >= 0)
+     * @returns {(Item|InvalidItem)} the `Item` or `InvalidItem` created
+     */
+    create(itemName, itemCategory, itemQuantity) {
+      if (
+        isValidItemName(itemName) &&
+        isValidItemCategory(itemCategory) &&
+        isValidItemQuantity(itemQuantity)
+      ) {
+        return new Item(
+          createSKU(itemName, itemCategory),
+          itemName,
+          itemCategory,
+          itemQuantity
+        );
+      }
+      return new InvalidItem();
+    }
+  };
+})();
+
+const ItemManager = {
+  itemCreator: ItemCreator,
+  /** @type {Array.<Item>} */
+  items: [],
 
   /**
    * Create a new item and add it to this `ItemManagers` `items` list. Returns
@@ -128,7 +128,7 @@ class ItemManager {
     if (item.notValid) return false;
     this.items.push(item);
     return true;
-  }
+  },
 
   /**
    * Given a **valid** `skuCode`, update the item with that `skuCode` using the
@@ -139,7 +139,7 @@ class ItemManager {
    */
   update(skuCode, itemInfoObj) {
     Object.assign(this.get(skuCode), itemInfoObj);
-  }
+  },
 
   /**
    * Given a **valid** `skuCode`, delete the item with that `skuCode` from this
@@ -155,7 +155,7 @@ class ItemManager {
     if (index >= 0) {
       this.items.splice(index, 1);
     }
-  }
+  },
 
   /**
    * Given a **valid** `skuCode`, return the item with that `skuCode`.
@@ -165,7 +165,7 @@ class ItemManager {
   get(skuCode) {
     skuCode = skuCode.toUpperCase();
     return this.items.find((item) => item.skuCode.toUpperCase() === skuCode);
-  }
+  },
 
   /**
    * Return an array of the in-stock items, whose `quantity` is greater than
@@ -174,7 +174,7 @@ class ItemManager {
    */
   inStock() {
     return this.items.filter((item) => item.quantity > 0);
-  }
+  },
 
   /**
    * Return an array of items in a given category.
@@ -183,20 +183,13 @@ class ItemManager {
    */
   itemsInCategory(itemCategory) {
     return this.items.filter((item) => item.category === itemCategory);
-  }
-}
+  },
+};
 
-class ReportManager {
-  constructor() {
-    this.itemManager = null;
-  }
-
-  // This could be in the constructor, but the exercise requirements specify the
-  // `init()` method. Using the OLOO pattern would be another option to satisfy
-  // the requirement without an additional constructor function.
+const ReportManager = {
   init(itemManager) {
     this.itemManager = itemManager;
-  }
+  },
 
   /**
    * Given a **valid** `skuCode`, return a reporter object with a single method,
@@ -216,7 +209,7 @@ class ReportManager {
         );
       },
     };
-  }
+  },
 
   reportInStock() {
     console.log(
@@ -225,42 +218,40 @@ class ReportManager {
         .map((item) => item.itemName)
         .join(", ")
     );
-  }
-}
+  },
+};
 
-let itemManager = new ItemManager();
-let reportManager = new ReportManager();
 
-console.log(itemManager.create("basket ball", "sports", 0) === true);   // valid item
-console.log(itemManager.create("asd", "sports", 0) === false);
-console.log(itemManager.create("soccer ball", "sports", 5) === true);   // valid item
-console.log(itemManager.create("football", "sports") === false);
-console.log(itemManager.create("football", "sports", 3) === true);      // valid item
-console.log(itemManager.create("kitchen pot", "cooking items", 0) === false);
-console.log(itemManager.create("kitchen pot", "cooking", 3) === true);  // valid item
+console.log(ItemManager.create("basket ball", "sports", 0) === true);   // valid item
+console.log(ItemManager.create("asd", "sports", 0) === false);
+console.log(ItemManager.create("soccer ball", "sports", 5) === true);   // valid item
+console.log(ItemManager.create("football", "sports") === false);
+console.log(ItemManager.create("football", "sports", 3) === true);      // valid item
+console.log(ItemManager.create("kitchen pot", "cooking items", 0) === false);
+console.log(ItemManager.create("kitchen pot", "cooking", 3) === true);  // valid item
 
-console.log(itemManager.items); // returns => list with the 4 valid items
+console.log(ItemManager.items); // returns => list with the 4 valid items
 
-reportManager.init(itemManager);
-reportManager.reportInStock(); // logs => soccer ball, football, kitchen pot
+ReportManager.init(ItemManager);
+ReportManager.reportInStock(); // logs => soccer ball, football, kitchen pot
 
-itemManager.update("SOCSP", { quantity: 0 });
+ItemManager.update("SOCSP", { quantity: 0 });
 
 // returns => list w/ item objs for football & kitchen pot
-console.log(itemManager.inStock());
+console.log(ItemManager.inStock());
 
-reportManager.reportInStock(); // logs => football, kitchen pot
+ReportManager.reportInStock(); // logs => football, kitchen pot
 
 // returns => list w/ item objs for basket ball, soccer ball, & football
-console.log(itemManager.itemsInCategory("sports"));
+console.log(ItemManager.itemsInCategory("sports"));
 
-itemManager.delete("SOCSP");
+ItemManager.delete("SOCSP");
 
 // returns => list w/ item objs for 3 valid items
 // (soccer ball is removed from the list)
-console.log(itemManager.items);
+console.log(ItemManager.items);
 
-let kitchenPotReporter = reportManager.createReporter("KITCO");
+let kitchenPotReporter = ReportManager.createReporter("KITCO");
 kitchenPotReporter.itemInfo();
 // logs =>
 // skuCode: KITCO
@@ -268,7 +259,7 @@ kitchenPotReporter.itemInfo();
 // category: cooking
 // quantity: 3
 
-itemManager.update("KITCO", { quantity: 10 });
+ItemManager.update("KITCO", { quantity: 10 });
 kitchenPotReporter.itemInfo();
 // logs =>
 // skuCode: KITCO
